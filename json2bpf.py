@@ -40,7 +40,6 @@ from typing import BinaryIO, cast
 SCRIPT_DIR = Path(__file__).parent.resolve()
 OUTPUT_DIR = SCRIPT_DIR / "output"
 
-
 def _err(msg: str) -> None:
     """Print error to stderr, flushing stdout first to maintain output order."""
     sys.stdout.flush()
@@ -69,12 +68,12 @@ _GZIP_MTIME = 0  # deterministic output
 
 def _write_gzip_header(buf: BinaryIO) -> None:
     """Write a gzip header matching Go's gzip.NewWriter defaults."""
-    buf.write(b"\x1f\x8b")  # magic
-    buf.write(b"\x08")  # method = DEFLATE
-    buf.write(b"\x00")  # flags: FHCRC=0, FEXTRA=0, FNAME=0, FCOMMENT=0
+    buf.write(b"\x1f\x8b")          # magic
+    buf.write(b"\x08")              # method = DEFLATE
+    buf.write(b"\x00")              # flags: FHCRC=0, FEXTRA=0, FNAME=0, FCOMMENT=0
     buf.write(struct.pack("<I", _GZIP_MTIME))  # mtime (little-endian uint32)
-    buf.write(b"\x00")  # extra flags: XFL=0 (default, matches Go's gzip.NewWriter)
-    buf.write(b"\xff")  # OS = 0xFF (unknown, same as Python's GzipFile)
+    buf.write(b"\x00")              # extra flags: XFL=0 (default, matches Go's gzip.NewWriter)
+    buf.write(b"\xff")              # OS = 0xFF (unknown, same as Python's GzipFile)
 
 
 def write_uvarint(buffer: BinaryIO, value: int) -> None:
@@ -111,9 +110,8 @@ def create_payload(name: str, config: str) -> bytes:
     # matching Go's flush order: write all data → flush deflate → write gzip trailer.
     _write_gzip_header(buf)
 
-    compressor = zlib.compressobj(
-        _GZIP_COMPRESSION_LEVEL, zlib.DEFLATED, -zlib.MAX_WBITS
-    )
+    compressor = zlib.compressobj(_GZIP_COMPRESSION_LEVEL, zlib.DEFLATED,
+                                  -zlib.MAX_WBITS)
 
     # Inner payload (mirrors Go's bufio.NewWriter → gzip.NewWriter chain)
     inner = io.BytesIO()
@@ -239,8 +237,8 @@ def verify_file(path: Path) -> None:
     print(f"📄 {path.name}  ({len(data)} bytes)")
     print("   Hex dump (first 64 bytes):")
     for i in range(0, min(64, len(data)), 16):
-        hex_part = " ".join(f"{b:02x}" for b in data[i : i + 16])
-        ascii_part = "".join(chr(b) if 32 <= b < 127 else "." for b in data[i : i + 16])
+        hex_part = " ".join(f"{b:02x}" for b in data[i:i + 16])
+        ascii_part = "".join(chr(b) if 32 <= b < 127 else "." for b in data[i:i + 16])
         print(f"   {i:04x}  {hex_part:<48}  {ascii_part}")
 
     if len(data) < 2:
@@ -249,12 +247,7 @@ def verify_file(path: Path) -> None:
 
     msg_type = data[0]
     version = data[1]
-    type_names = {
-        0: "Error",
-        1: "ProfileList",
-        2: "ContentRequest",
-        3: "ProfileContent",
-    }
+    type_names = {0: "Error", 1: "ProfileList", 2: "ContentRequest", 3: "ProfileContent"}
     print(f"\n   Message Type: {msg_type} ({type_names.get(msg_type, 'Unknown')})")
     print(f"   Version:      {version}")
 
@@ -298,7 +291,7 @@ def verify_file(path: Path) -> None:
             print("   ❌ Truncated name field")
             return
         name = name_bytes.decode("utf-8")
-        print(f'   Name:         "{name}"')
+        print(f"   Name:         \"{name}\"")
 
         # Type
         type_bytes = reader.read(4)
@@ -307,9 +300,7 @@ def verify_file(path: Path) -> None:
             return
         profile_type = struct.unpack(">i", type_bytes)[0]
         type_labels = {0: "Local", 1: "iCloud", 2: "Remote"}
-        print(
-            f"   Type:         {profile_type} ({type_labels.get(profile_type, 'Unknown')})"
-        )
+        print(f"   Type:         {profile_type} ({type_labels.get(profile_type, 'Unknown')})")
 
         # Config
         config_len = read_uvarint()
@@ -326,11 +317,7 @@ def verify_file(path: Path) -> None:
             keys = list(config.keys())
             print(f"   JSON keys:    {keys}")
             if "outbounds" in config:
-                ob_count = (
-                    len(config["outbounds"])
-                    if isinstance(config["outbounds"], list)
-                    else "?"
-                )
+                ob_count = len(config["outbounds"]) if isinstance(config["outbounds"], list) else "?"
                 print(f"   Outbounds:    {ob_count}")
         except json.JSONDecodeError:
             print("   ⚠️  Config is not valid JSON")
@@ -364,13 +351,11 @@ Binary format (v1):
         help="JSON config file(s) to convert. Use '-' for stdin.",
     )
     parser.add_argument(
-        "-n",
-        "--name",
+        "-n", "--name",
         help="Profile name (default: input filename without extension)",
     )
     parser.add_argument(
-        "-o",
-        "--output",
+        "-o", "--output",
         type=Path,
         help="Output file path (only valid with single input)",
     )
