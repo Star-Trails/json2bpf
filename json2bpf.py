@@ -84,6 +84,20 @@ def write_uvarint(buffer: BinaryIO, value: int) -> None:
     buffer.write(struct.pack("B", value & 0xFF))
 
 
+def read_uvarint(reader: BinaryIO) -> int:
+    """Read a Protobuf-style Varint from a binary stream."""
+    result, shift = 0, 0
+    while True:
+        b = reader.read(1)
+        if not b:
+            raise ValueError("Unexpected EOF in uvarint")
+        byte = b[0]
+        result |= (byte & 0x7F) << shift
+        if byte < 0x80:
+            return result
+        shift += 7
+
+
 def write_string(buffer: BinaryIO, content: str) -> None:
     """Write a uvarint-length-prefixed UTF-8 string."""
     data = content.encode("utf-8")
@@ -271,21 +285,9 @@ def verify_file(path: Path) -> None:
     # Parse the payload
     reader = io.BytesIO(payload)
 
-    def read_uvarint() -> int:
-        result, shift = 0, 0
-        while True:
-            b = reader.read(1)
-            if not b:
-                raise ValueError("Unexpected EOF in uvarint")
-            byte = b[0]
-            result |= (byte & 0x7F) << shift
-            if byte < 0x80:
-                return result
-            shift += 7
-
     try:
         # Name
-        name_len = read_uvarint()
+        name_len = read_uvarint(reader)
         name_bytes = reader.read(name_len)
         if len(name_bytes) < name_len:
             print("   ❌ Truncated name field")
@@ -303,7 +305,7 @@ def verify_file(path: Path) -> None:
         print(f"   Type:         {profile_type} ({type_labels.get(profile_type, 'Unknown')})")
 
         # Config
-        config_len = read_uvarint()
+        config_len = read_uvarint(reader)
         config_bytes = reader.read(config_len)
         if len(config_bytes) < config_len:
             print("   ❌ Truncated config field")
